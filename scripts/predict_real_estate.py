@@ -4,37 +4,40 @@
 
 import joblib
 import pandas as pd
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+MODEL_PATH = BASE_DIR / "models" / "real_estate_model.pkl"
+
 
 # ==============================
 # 2. LOAD MODEL
 # ==============================
 
-model = joblib.load("real_estate_model.pkl")
+model = joblib.load(MODEL_PATH)
 
 # ==============================
 # 3. NEW DATA
 # ==============================
 
-new_house = pd.DataFrame([{
-    "surface": 120,
-    "rooms": 5,
-    "floor": 3,
-    "balcony": 1,
-    "parking": 1,
-    "age": 10,
-
-    "district_calme": 0,
-    "district_centre": 0,
-    "district_luxe": 1,
-    "district_populaire": 0
-}])
+sample = pd.DataFrame(
+    [
+        {
+            "surface": 100,
+            "rooms": 4,
+            "floor": 2,
+            "balcony": 1,
+            "parking": 1,
+            "age": 10,
+            "district": "centre",
+        }
+    ]
+)
 
 # ==============================
 # 4. PREDICTION
 # ==============================
 
-prediction = model.predict(new_house)
+prediction = model.predict(sample)
 
-print("\nPrix estimé :")
-
-print(prediction[0])
+print(f"Prix estimé : {prediction[0]:,.0f} €")

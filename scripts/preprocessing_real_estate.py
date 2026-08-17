@@ -3,9 +3,11 @@
 # ==============================
 
 import pandas as pd
-import os 
-dossier = os.path.dirname(__file__)
-fichier = os.path.join(dossier, "real_estate_dataset.csv")
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_PATH = BASE_DIR / "data" / "real_estate_dataset.csv"
+
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
 
@@ -13,7 +15,7 @@ from sklearn.preprocessing import OneHotEncoder
 # 2. LOAD DATASET
 # ==============================
 
-df = pd.read_csv(fichier)
+df = pd.read_csv(DATA_PATH)
 
 # ==============================
 # 3. FEATURES / TARGET
@@ -32,8 +34,7 @@ encoder = OneHotEncoder(sparse_output=False)
 district_encoded = encoder.fit_transform(X[["district"]])
 
 district_df = pd.DataFrame(
-    district_encoded,
-    columns=encoder.get_feature_names_out(["district"])
+    district_encoded, columns=encoder.get_feature_names_out(["district"])
 )
 
 # ==============================
@@ -46,21 +47,14 @@ X = X.drop("district", axis=1)
 # 6. CONCAT NEW COLUMNS
 # ==============================
 
-X = pd.concat(
-    [X.reset_index(drop=True),
-     district_df.reset_index(drop=True)],
-    axis=1
-)
+X = pd.concat([X.reset_index(drop=True), district_df.reset_index(drop=True)], axis=1)
 
 # ==============================
 # 7. TRAIN / TEST SPLIT
 # ==============================
 
 X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
-    test_size=0.2,
-    random_state=42
+    X, y, test_size=0.2, random_state=42
 )
 
 # ==============================

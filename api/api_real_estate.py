@@ -6,78 +6,79 @@ from fastapi import FastAPI
 
 import joblib
 import pandas as pd
+from pydantic import BaseModel
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+MODEL_PATH = BASE_DIR / "models" / "real_estate_model.pkl"
 
 # ==============================
 # 2. LOAD MODEL
 # ==============================
 
-model = joblib.load("ML/real_estate_ml/api/real_estate_model.pkl")
+model = joblib.load(MODEL_PATH)
 
 # ==============================
 # 3. FASTAPI
 # ==============================
 
-app = FastAPI()
+app = FastAPI(
+    title="Real Estate ML API",
+    description="API de prédiction de prix immobilier",
+    version="1.0.0",
+)
+
+
+class PropertyFeatures(BaseModel):
+    surface: float
+    rooms: int
+    floor: int
+    balcony: int
+    parking: int
+    age: int
+    district: str
+
 
 # ==============================
 # 4. HOME
 # ==============================
 
-@app.get("/")
-def home():
 
-    return {
-        "message": "API Real Estate ML fonctionne"
-    }
+@app.get("/")
+def root():
+    return {"message": "Real Estate ML API", "status": "running"}
+
 
 # ==============================
 # 5. PREDICT
 # ==============================
 
-@app.get("/predict")
 
-def predict(
-    surface: float,
-    rooms: int,
-    floor: int,
-    balcony: int,
-    parking: int,
-    age: int,
+@app.post("/predict")
+def predict_price(property_data: PropertyFeatures):
 
-    district_calme: int,
-    district_centre: int,
-    district_luxe: int,
-    district_populaire: int
-):
-
-    # --------------------------
-    # CREATE DATAFRAME
-    # --------------------------
-
-    data = pd.DataFrame([{
-        "surface": surface,
-        "rooms": rooms,
-        "floor": floor,
-        "balcony": balcony,
-        "parking": parking,
-        "age": age,
-
-        "district_calme": district_calme,
-        "district_centre": district_centre,
-        "district_luxe": district_luxe,
-        "district_populaire": district_populaire
-    }])
+    input_data = pd.DataFrame(
+        [
+            {
+                "surface": property_data.surface,
+                "rooms": property_data.rooms,
+                "floor": property_data.floor,
+                "balcony": property_data.balcony,
+                "parking": property_data.parking,
+                "age": property_data.age,
+                "district": property_data.district,
+            }
+        ]
+    )
 
     # --------------------------
     # PREDICTION
     # --------------------------
 
-    prediction = model.predict(data)
+    prediction = model.predict(input_data)[0]
 
     # --------------------------
     # RETURN RESULT
     # --------------------------
 
-    return {
-        "prix_estime": round(prediction[0], 2)
-    }
+    return {"predicted_price": round(float(prediction), 2), "currency": "EUR"}

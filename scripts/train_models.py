@@ -5,9 +5,12 @@
 import joblib
 import matplotlib.pyplot as plt
 import pandas as pd
-import os 
-dossier = os.path.dirname(__file__)
-fichier = os.path.join(dossier, "real_estate_dataset.csv")
+
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_PATH = BASE_DIR / "data" / "real_estate_dataset.csv"
+MODEL_PATH = BASE_DIR / "models" / "real_estate_model.pkl"
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
@@ -16,91 +19,115 @@ from sklearn.linear_model import LinearRegression
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor
 
-from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.metrics import r2_score
+
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder
 
 # ==============================
 # 2. LOAD DATASET
 # ==============================
 
-df = pd.read_csv(fichier)
+df = pd.read_csv(DATA_PATH)
 
 # ==============================
 # 3. FEATURES / TARGET
 # ==============================
 
-X = df.drop("price", axis=1)
+X = df[
+    [
+        "surface",
+        "rooms",
+        "floor",
+        "balcony",
+        "parking",
+        "age",
+        "district",
+    ]
+]
 
 y = df["price"]
+
+categorical_features = ["district"]
+
+numeric_features = [
+    "surface",
+    "rooms",
+    "floor",
+    "balcony",
+    "parking",
+    "age",
+]
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        (
+            "district_encoder",
+            OneHotEncoder(handle_unknown="ignore"),
+            categorical_features,
+        )
+    ],
+    remainder="passthrough",
+)
 
 # ==============================
 # 4. ENCODING
 # ==============================
 
-encoder = OneHotEncoder(sparse_output=False)
 
-district_encoded = encoder.fit_transform(X[["district"]])
-
-district_df = pd.DataFrame(
-    district_encoded,
-    columns=encoder.get_feature_names_out(["district"])
-)
-
-X = X.drop("district", axis=1)
-
-X = pd.concat(
-    [X.reset_index(drop=True),
-     district_df.reset_index(drop=True)],
-    axis=1
-)
-
-# ==============================
 # 5. TRAIN / TEST
 # ==============================
 
 X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
-    test_size=0.2,
-    random_state=42
+    X, y, test_size=0.2, random_state=42
 )
 
-#==============================
+# ==============================
 # 6. MODÈLES
 # ==============================
 
-model_lr = LinearRegression()
-
-model_dt = DecisionTreeRegressor(
-    max_depth=10,
-    random_state=42
+pipeline_lr = Pipeline(
+    steps=[
+        ("preprocessor", preprocessor),
+        ("model", LinearRegression()),
+    ]
 )
 
-model_rf = RandomForestRegressor(
-    n_estimators=100,
-    max_depth=10,
-    random_state=42
+pipeline_dt = Pipeline(
+    steps=[
+        ("preprocessor", preprocessor),
+        ("model", DecisionTreeRegressor(random_state=42)),
+    ]
+)
+
+pipeline_rf = Pipeline(
+    steps=[
+        ("preprocessor", preprocessor),
+        ("model", RandomForestRegressor(random_state=42)),
+    ]
 )
 
 # ==============================
 # 7. ENTRAÎNEMENT
 # ==============================
 
-model_lr.fit(X_train, y_train)
+pipeline_lr.fit(X_train, y_train)
 
-model_dt.fit(X_train, y_train)
+pipeline_dt.fit(X_train, y_train)
 
-model_rf.fit(X_train, y_train)
+pipeline_rf.fit(X_train, y_train)
 
 # ==============================
 # 8. PREDICTIONS
 # ==============================
 
-pred_lr = model_lr.predict(X_test)
+pred_lr = pipeline_lr.predict(X_test)
 
-pred_dt = model_dt.predict(X_test)
+pred_dt = pipeline_dt.predict(X_test)
 
-pred_rf = model_rf.predict(X_test)
+pred_rf = pipeline_rf.predict(X_test)
 
 # ==============================
 # 9. ÉVALUATION
@@ -110,7 +137,9 @@ print("\n===== LINEAR REGRESSION =====")
 
 print("MAE :", mean_absolute_error(y_test, pred_lr))
 
-print("R2 :", r2_score(y_test, pred_lr))
+print("MSE :", mean_squared_error(y_test, pred_lr))
+
+print("R² :", r2_score(y_test, pred_lr))
 
 # ------------------------------
 
@@ -118,7 +147,9 @@ print("\n===== DECISION TREE =====")
 
 print("MAE :", mean_absolute_error(y_test, pred_dt))
 
-print("R2 :", r2_score(y_test, pred_dt))
+print("MSE :", mean_squared_error(y_test, pred_dt))
+
+print("R² :", r2_score(y_test, pred_dt))
 
 # ------------------------------
 
@@ -126,13 +157,15 @@ print("\n===== RANDOM FOREST =====")
 
 print("MAE :", mean_absolute_error(y_test, pred_rf))
 
-print("R2 :", r2_score(y_test, pred_rf))
+print("MSE :", mean_squared_error(y_test, pred_rf))
+
+print("R² :", r2_score(y_test, pred_rf))
 
 # ==============================
 # 10. VISUALISATION
 # ==============================
 
-plt.figure(figsize=(8,6))
+plt.figure(figsize=(8, 6))
 
 plt.scatter(y_test, pred_lr)
 
@@ -144,7 +177,7 @@ plt.title("Linear Regression : vrais prix vs prédictions")
 
 plt.show()
 
-plt.figure(figsize=(8,6))
+plt.figure(figsize=(8, 6))
 
 plt.scatter(y_test, pred_rf)
 
@@ -160,6 +193,6 @@ plt.show()
 # 11. SAVE MODEL
 # ==============================
 
-joblib.dump(model_lr, "real_estate_model.pkl")
+joblib.dump(pipeline_lr, MODEL_PATH)
 
 print("\nModèle sauvegardé !")
